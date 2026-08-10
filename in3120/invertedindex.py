@@ -126,7 +126,7 @@ class InMemoryInvertedIndex(InvertedIndex):
         """
         raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
 
-    def _finalize_index(self):
+    def _finalize_index(self) -> None:
         """
         Invoked at the very end after all documents have been processed. Provides
         implementations that need it with the chance to tie up any loose ends,
@@ -170,7 +170,7 @@ class DummyInMemoryInvertedIndex(InMemoryInvertedIndex):
     def _append_to_posting_list(self, term_id: int, document_id: int, term_frequency: int, compressed: bool) -> None:
         self._document_frequencies[term_id] += 1
 
-    def _finalize_index(self):
+    def _finalize_index(self) -> None:
         pass
 
     def get_postings_iterator(self, term: str) -> Iterator[Posting]:
