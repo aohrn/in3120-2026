@@ -2,7 +2,7 @@
 
 Welcome to this semester's installment of IN3120/IN4120! Some administrivia:
 
-* I (aleksaoh) will be your Professor, and the one that lectures unless otherwise noted. There will be two Teaching Assistants (TAs) this semester: Zeeshan (muhammzs) and Ådne (aadnenl).
+* I (aleksaoh) will be your Professor, and the one that lectures unless otherwise noted. There will be one Teaching Assistant (TA) this semester: Zeeshan (muhammzs). In addition, Ådne (aadnenl) and Peder (pedermf) will take part in grading (pass/fail) the obligatory assignments.
 
 * There is a [semester home page](https://www.uio.no/studier/emner/matnat/ifi/IN3120/h25/index.html). There you'll find a preliminary lecture plan, links to recordings of lectures, information about the final exam, and more.
 
