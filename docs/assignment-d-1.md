@@ -1,6 +1,6 @@
 # Assignment D-1
 
-**Deadline:** 2026-11-02
+**Deadline:** 2026-10-19
 
 ## Task
 
