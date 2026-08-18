@@ -1,6 +1,6 @@
 # Assignment D-2
 
-**Deadline:** YYYY-MM-DD
+**Deadline:** 2026-10-19
 
 ## Task
 
