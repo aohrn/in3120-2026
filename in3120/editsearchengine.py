@@ -7,11 +7,11 @@
 
 import math
 from dataclasses import dataclass
-from typing import Iterator, Any, Callable
+from typing import Iterator, Iterable, Dict, Any, Callable
 from .edittable import EditTable
-from .analyzer import Analyzer
+from .analyzer import Analyzer, DummyAnalyzer
 from .sieve import Sieve
-from .trie import Trie
+from .trie import SimpleTrie, Trie
 
 
 class EditSearchEngine:
