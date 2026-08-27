@@ -16,9 +16,9 @@ You will be provided with some "precode" or "starter code", i.e., a set of helpe
 * [`tests`](../tests/): Tests and REPL-related code. To familiarize yourself with the precode, this might be a good place to start after having read the walkthrough guide.
 * [`data`](../data/): Various corpora used by the tests.
 
-The precode is in many places annotated with [type hints](https://www.python.org/dev/peps/pep-0484/). This doesn't make Python a statically typed language, but are just hints that are possible to ignore and abuse. They do convey intent and serve as a kind of additional documentation, though, and enable PyCharm and other IDEs to give you better and richer programming support.
+The precode is in many places annotated with [type hints](https://www.python.org/dev/peps/pep-0484/). This doesn't make Python a statically typed language, but are just hints that are possible to ignore and abuse. They do convey intent and serve as a kind of additional documentation, though, and enable Visual Studio Code and other IDEs to give you better and richer programming support.
 
-Please strive to create readable and modular code. At a minimum, your code should pass all PyCharm's quality checks with PyCharm's standard configuration. PyCharm warns about quality issues in its right-hand scrollbar. Please fix all these before submitting your code.
+Please strive to create readable and modular code. If the [linter](https://en.wikipedia.org/wiki/Lint_(software)) in your IDE warns you about problems, please address them.
 
 ## Preliminaries
 
@@ -93,9 +93,9 @@ Ran 329 tests in 21.828s
 OK
 ```
 
-Tests can also be run and debugged from within PyCharm: Open up the file containing the tests in PyCharm and next to the test class or test method, in the left margin of your editor, look for a green arrow as shown [here](https://www.jetbrains.com/help/pycharm/testing-your-first-python-application.html). Clicking it will bring up a context-sensitive menu. Using the default setting of `unittest` as the default test runner should work fine.
+If you are using PyCharm as your IDE, tests can also be run and debugged from within PyCharm: Open up the file containing the tests in PyCharm and next to the test class or test method, in the left margin of your editor, look for a green arrow as shown [here](https://www.jetbrains.com/help/pycharm/testing-your-first-python-application.html). Clicking it will bring up a context-sensitive menu. Using the default setting of `unittest` as the default test runner should work fine.
 
-Similarly, if you're using Visual Studio Code as your IDE, tests can be run from within the IDE. Your configuration should look something like this:
+Similarly, if you are using Visual Studio Code as your IDE, tests can be run from within the IDE. Your configuration should look something like this:
 
 ```json
 >more .\.vscode\settings.json
