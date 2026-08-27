@@ -1,6 +1,6 @@
 # Introduction
 
-This is the companion GitHub repository for the [IN3120](https://www.uio.no/studier/emner/matnat/ifi/IN3120/)/[IN4120](https://www.uio.no/studier/emner/matnat/ifi/IN4120/) course, used to disseminate obligatory assigments and other relevant materials.
+This is the companion GitHub repository for the [IN3120](https://www.uio.no/studier/emner/matnat/ifi/IN3120/)/[IN4120](https://www.uio.no/studier/emner/matnat/ifi/IN4120/) course, used to disseminate obligatory assignments and other relevant materials.
 
 You will not be pushing anything to this repository, you will only be [pulling from it](https://github.com/git-guides/git-pull). First, you will need to [clone it](https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository-from-github/cloning-a-repository).
 
