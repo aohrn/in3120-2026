@@ -77,3 +77,77 @@ class EditSearchEngine:
         use cases.
         """
         raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+
+
+class WordEditSearchEngine:
+    """
+    Realizes a simple token-level edit distance lookup engine. For example, the edit distance
+    between "foo bar baz" and "bar foo gog" is 2 with Damerau-Levenshtein distance, as at the
+    token-level we can transpose the first two tokens and replace the third token.
+
+    Internally, the searchable strings are transformed so that each unique token is mapped to
+    a unique Unicode code point. We can then use a character-level edit distance engine over
+    the transformed strings using a transformed query, and reverse the transformation when
+    reporting results.
+    """
+
+    # The code point to use when a query token is encountered that is unknown, i.e., not present
+    # in searchable data and thus not mappable to a known code point.
+    _UNKNOWN = 0
+
+    def __init__(self, strings: Iterable[str], analyzer: Analyzer):
+        self._token2codepoint: Dict[str, int] = {}
+        self._codepoint2token: Dict[int, str] = {}
+        self._analyzer = analyzer
+        self._engine = self._create_engine(strings)
+
+    def _create_engine(self, strings: Iterable[str]) -> EditSearchEngine:
+        """
+        Creates the underlying character-level edit search engine, after transforming the
+        supplied strings into sequences of code points.
+        """
+        dummy = DummyAnalyzer()
+        trie = SimpleTrie.from_strings(list(self._transform(strings, self._analyzer)), dummy)
+        return EditSearchEngine(trie, dummy)
+
+    def _transform(self, strings: Iterable[str], analyzer: Analyzer) -> Iterator[str]:
+        """
+        Transforms each input string into a sequence of code points, one code point per token.
+        The internal mappings between tokens and code points are updated as new tokens are
+        encountered. We avoid the code point used to represent unknown query tokens.
+
+        For convenience and debuggability we stick to using code points that map to printable
+        symbols, but this is not strictly necessary.
+        """
+        codepoints = (i for i in range(0x110000) if chr(i).isprintable() and i != self._UNKNOWN)
+        for string in strings:
+            tokens = [token for token, _ in analyzer.terms(string)]
+            for token in tokens:
+                if token not in self._token2codepoint:
+                    codepoint = next(codepoints)
+                    self._token2codepoint[token] = codepoint
+                    self._codepoint2token[codepoint] = token
+            yield "".join(chr(self._token2codepoint[token]) for token in tokens)
+
+    def _untransform(self, string: str) -> str:
+        """
+        Reverses the transformation of a code point sequence back into a token sequence.
+        Assumes that all code points in the input string are known.
+        """
+        return " ".join(self._codepoint2token[ord(c)] for c in string)
+
+    def evaluate(self, query: str, options: EditSearchEngine.Options | None = None) -> Iterator[EditSearchEngine.Result]:
+        """
+        Locates all strings that are no more than a given number of edit errors away from the
+        query string. Edit distance is measured at the token-level.
+
+        The matching strings, if any, are scored and only the highest-scoring matches are yielded
+        back to the client.
+        """
+        # Map all query terms to code points. All unknown terms are mapped to a reserved code point,
+        # we currently don't discern between different unknown terms.
+        query = "".join(chr(self._token2codepoint.get(token, self._UNKNOWN)) for token, _ in self._analyzer.terms(query))
+
+        # Do a character-level edit distance search. Reverse the transformation when reporting results.
+        for result in self._engine.evaluate(query, options):
+            yield EditSearchEngine.Result(self._untransform(result.match), result.meta, result.score, result.distance)
