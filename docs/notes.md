@@ -1,6 +1,6 @@
 # Notes
 
-The following is a set of unstructured notes and opinions/commentary that may or may not useful.
+The following is a set of unstructured notes and opinions/commentary that may or may not be useful.
 
 When most people hear the word "search" they think of web search and services such as [Google](https://www.google.com/) or [Bing](https://www.bing.com/). But search also has a prominent place in the enterprise world, and search technologies come into play also when building feed- and recommendation products, advertising platforms, and more. As such, search covers much more than traditional web search, and is sometimes an invisible component to the application. Creatively overloading the notion of what a "document" or "query" is opens up for a lot of useful applications, and so-called "zero-term search" where the system automagially generates and executes a query on your behalf opens up for non-traditional scenarios.
 
