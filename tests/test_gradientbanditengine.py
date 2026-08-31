@@ -110,9 +110,10 @@ class TestGradientBanditEngine(unittest.TestCase):
     def _test_greedy_action_selection_with_invalid_epsilon(self, engine: in3120.GradientBanditEngine):
         for epsilon in (-0.1, 1.1):
             with self.assertRaises(AssertionError):
-                _ = engine.greedy(epsilon=epsilon)
+                _ = engine.greedy(epsilon=epsilon, seed=42)
 
     def _test_greedy_action_selection_with_nonzero_epsilon(self, engine: in3120.GradientBanditEngine):
+        _ = engine.greedy(0.2, seed=42)
         distribution = Counter(engine.greedy(0.2) for _ in range(1000))
         self.assertEqual(3, len(distribution))
         self.assertTrue(distribution["x"] < distribution["y"])
@@ -124,13 +125,13 @@ class TestGradientBanditEngine(unittest.TestCase):
     def _test_greedy_action_selection_with_invalid_subset(self, engine: in3120.GradientBanditEngine):
         for subset in ([], ["w", "x", "y"]):
             with self.assertRaises(AssertionError):
-                _ = engine.greedy(subset=subset)
+                _ = engine.greedy(subset=subset, seed=21)
 
     def _test_greedy_action_selection_with_zero_epsilon(self, engine: in3120.GradientBanditEngine):
         self.assertEqual(engine.greedy(), "y")
-        self.assertEqual(engine.greedy(subset=["x", "y", "z"]), "y")
-        self.assertEqual(engine.greedy(subset=["y", "z"]), "y")
-        self.assertEqual(engine.greedy(subset=["x", "z"]), "x")
+        self.assertEqual(engine.greedy(subset=["x", "y", "z"], seed=42), "y")
+        self.assertEqual(engine.greedy(subset=["y", "z"], seed=42), "y")
+        self.assertEqual(engine.greedy(subset=["x", "z"], seed=42), "x")
 
     def test_sampling_random_actions(self):
         actions = ["x", "y", "z"]
@@ -142,13 +143,13 @@ class TestGradientBanditEngine(unittest.TestCase):
         self._test_sampling_random_actions_with_invalid_sample_size(engine)
 
     def _test_sampling_random_actions_with_no_subset(self, engine: in3120.GradientBanditEngine):
-        distribution = Counter(engine.sample(1000))
+        distribution = Counter(engine.sample(1000, seed=42))
         self.assertEqual(3, len(distribution))
         self.assertTrue(distribution["x"] < distribution["y"])
         self.assertTrue(distribution["y"] < distribution["z"])
 
     def _test_sampling_random_actions_with_subset(self, engine: in3120.GradientBanditEngine):
-        distribution = Counter(engine.sample(1000, ["x", "z"]))
+        distribution = Counter(engine.sample(1000, ["x", "z"], seed=42))
         self.assertEqual(2, len(distribution))
         self.assertTrue(distribution["x"] < distribution["z"])
 

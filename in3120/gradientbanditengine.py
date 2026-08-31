@@ -159,7 +159,7 @@ class GradientBanditEngine:
             lines.append(f"{a.ljust(width)} ({value:.3f}): {'*' * int(50 * value / largest)}")
         return "\n".join(lines)
 
-    def sample(self, k: int, subset: List[str] | None = None) -> List[str]:
+    def sample(self, k: int, subset: List[str] | None = None, seed: int | None = None) -> List[str]:
         """
         Samples a given number of actions according to the current policy. Having a bias towards
         sampling more probable actions makes sense for exploitation, whereas leaving room for
@@ -167,10 +167,15 @@ class GradientBanditEngine:
 
         A subset of actions to sample from can be optionally supplied. If no subset is provided,
         all actions are sampled from.
+
+        A seed for the random number generator can be optionally specified, e.g., to make tests
+        deterministic.
         """
         assert k > 0, "Invalid sample size."
         assert subset is None or all(a in self._state.policy for a in subset), "Unknown action."
         assert subset is None or len(subset) > 0, "Empty subset."
+        if seed is not None:
+            random.seed(seed)
         if subset is None:
             actions = list(self._state.policy.keys())
             probabilities = list(self._state.policy.values())
@@ -179,7 +184,7 @@ class GradientBanditEngine:
             probabilities = [self._state.policy[a] for a in actions]
         return random.choices(actions, weights=probabilities, k=k)
 
-    def greedy(self, epsilon: float = 0.0, subset: List[str] | None = None) -> str:
+    def greedy(self, epsilon: float = 0.0, subset: List[str] | None = None, seed: int | None = None) -> str:
         """
         With a small probability ε, returns a uniformly sampled random action. With probability
         1 - ε, returns the action having the highest preference value. Ties are resolved arbitrarily.
@@ -187,10 +192,15 @@ class GradientBanditEngine:
 
         A subset of actions to sample from can be optionally supplied. If no subset is provided,
         all actions are sampled from.
+
+        A seed for the random number generator can be optionally specified, e.g., to make tests
+        deterministic.
         """
         assert 0.0 <= epsilon <= 1.0, "Epsilon must be in [0, 1]."
         assert subset is None or all(a in self._state.policy for a in subset), "Unknown action."
         assert subset is None or len(subset) > 0, "Empty subset."
+        if seed is not None:
+            random.seed(seed)
         if epsilon == 0.0 or random.uniform(0, 1) >= epsilon:
             return max((a for a in self._state.preferences if subset is None or a in subset), key=lambda x: self._state.preferences[x])
         if subset is None:
