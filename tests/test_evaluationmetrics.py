@@ -148,6 +148,13 @@ class TestEvaluationMetrics(unittest.TestCase):
         tau = in3120.EvaluationMetrics.kendall_tau(preferences, ranking)
         self.assertAlmostEqual(tau, (2 - 1) / (2 + 1), 7)
 
+    def test_cohen_kappa(self):
+        # Table 8.2 in the textbook.
+        judgments1 = [True for _ in range(300)] + [False for _ in range(70)] + [True for _ in range(20)] + [False for _ in range(10)]
+        judgments2 = [True for _ in range(300)] + [False for _ in range(70)] + [False for _ in range(20)] + [True for _ in range(10)]
+        kappa = in3120.EvaluationMetrics.cohen_kappa(judgments1, judgments2)
+        self.assertAlmostEqual(kappa, 0.776, 3)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

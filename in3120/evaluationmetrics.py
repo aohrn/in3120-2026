@@ -173,6 +173,40 @@ class EvaluationMetrics:
         return mean(EvaluationMetrics.reciprocal_rank(judgments2) for judgments2 in judgments)
 
     @staticmethod
+    def cohen_kappa(judgments1: Iterable[bool], judgments2: Iterable[bool]) -> float:
+        """
+        Computes Cohen's κ, a measure of inter-rater agreement. For details, see
+        https://nlp.stanford.edu/IR-book/html/htmledition/assessing-relevance-1.html
+        or https://en.wikipedia.org/wiki/Cohen%27s_kappa.
+
+        The κ value will be 1 if two judges always agree, 0 if they agree only at the rate
+        given by chance, and negative if they are worse than random. If there are more than
+        two judges, it is normal to calculate an average pairwise κ value. As a rule of thumb,
+        a κ value above 0.8 is taken as good agreement, a κ value between 0.67 and 0.8 is
+        taken as fair agreement, and agreement below 0.67 is seen as data providing a dubious
+        basis for an evaluation, though the precise cutoffs depend on the purposes for which the
+        data will be used.
+        """
+        yy, yn, ny, nn = 0, 0, 0, 0
+        for judgment1, judgment2 in zip(judgments1, judgments2):
+            if judgment1 and judgment2:
+                yy += 1
+            elif judgment1 and not judgment2:
+                yn += 1
+            elif not judgment1 and judgment2:
+                ny += 1
+            else:
+                nn += 1
+        total = (yy + yn + ny + nn)
+        assert total != 0
+        pa = (yy + nn) / total
+        pn = ((ny + nn) + (yn + nn)) / (total + total)
+        py = ((yy + yn) + (yy + ny)) / (total + total)
+        pe = (pn * pn) + (py * py)
+        assert pe != 0
+        return (pa - pe) / (1 - pe)
+
+    @staticmethod
     def kendall_tau(preferences: List[Tuple[int, int]], ranking: List[int]) -> float:
         """
         Given a set of pairwise preferences, computes how well a given ranking
