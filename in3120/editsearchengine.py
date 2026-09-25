@@ -16,9 +16,9 @@ from .trie import SimpleTrie, Trie
 
 class EditSearchEngine:
     """
-    Realizes a simple edit distance lookup engine, that, given a larger set of strings encoded
-    in a trie, finds all strings in the trie that are close to a given query string in terms of edit
-    distance.
+    Realizes a simple character-level edit distance lookup engine, that, given a larger set of strings
+    encoded in a trie, finds all strings in the trie that are close to a given query string in terms of
+    edit distance.
     
     See the paper "Tries for Approximate String Matching" by Shang and Merrett for details. This
     implementation assumes that we set an upper bound on the allowed edit distance (treating anything
@@ -60,7 +60,71 @@ class EditSearchEngine:
         The matching strings, if any, are scored and only the highest-scoring matches are yielded
         back to the client.
         """
-        raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+        # Default options apply unless specified.
+        options = options or self.Options()
+
+        # Tokenize and join to be robust to nuances in whitespace.
+        query = self._analyzer.join(query)
+
+        # The upper bound for the edit distance we accept between the query and a match. Assumed to be
+        # a small number, e.g., 1, 2, or 3. The lower we set the upper bound, the more we can prune
+        # the search space, and the more efficient the lookup will be.
+        upper_bound = max(0, options.upper_bound)
+
+        # The maximum number of candidate matches we score.
+        candidate_count = max(1, options.candidate_count)
+
+        # The maximum number of scored matches we will emit.
+        hit_count = max(1, min(100, options.hit_count))
+
+        # Assume that the N first characters are correct? This significantly prunes down the search
+        # space and can give a performance boost. However, we get worse recall if the assumption is
+        # incorrect.
+        first_n = max(0, min(len(query), options.first_n))
+
+        # Make some modifications to our starting point, if needed.
+        head = query[:first_n]
+        tail = query[first_n:]
+        root = self._trie if first_n == 0 else self._trie.consume(head)
+
+        # The available scoring functions that the client can choose from. High
+        # scores are better than low scores. The "lopresti" function is lifted
+        # from https://www.cse.lehigh.edu/~lopresti/Publications/1996/sdair96.pdf.
+        scorers = {
+            "negated":    lambda d, q, c: -d,
+            "normalized": lambda d, q, c: 1.0 - (d / (first_n + max(len(q), len(c)))),
+            "lopresti":   lambda d, q, c: 1.0 / math.exp(d / (first_n + max(len(q), len(c)) - d)),
+        }
+
+        # The selected scoring function to apply to candidate matches.
+        scorer = scorers.get(options.scoring, None)
+        assert scorer is not None
+
+        # For keeping track of scored candidate matches. Only retains the highest-scoring ones.
+        sieve = Sieve(hit_count)
+
+        # The edit table object that we update as we traverse the trie. Two strings that share
+        # a prefix of length N also share the N first columns in the edit table. Hence, as we
+        # traverse the trie we can avoid recomputing large parts of the table.
+        table = EditTable(tail, "?" * 10, False)
+
+        # Receives matches from the search, as they are found. The search aborts if the callback
+        # returns False, i.e., when we have received sufficiently many candidate matches.
+        # TODO: If the trie has meta data that indicates how common the entries are, use this for scoring.
+        def callback(distance: int, candidate: str, meta: Any) -> bool:
+            score = scorer(distance, tail, candidate)
+            sieve.sift(score, (distance, candidate, meta))
+            nonlocal candidate_count
+            candidate_count -= 1
+            return candidate_count > 0
+
+        # Search! We receive and sift results via the callback.
+        if root:
+            self._dfs(root, 0, table, upper_bound, callback)
+
+        # Emit the best matches!
+        for score, (distance, match, meta) in sieve.winners():
+            yield self.Result(head + match, meta, score, distance)
 
     def _dfs(self, node: Trie, level: int, table: EditTable, upper_bound: int, callback: Callable[[int, str, Any], bool]) -> bool:
         """
@@ -76,7 +140,29 @@ class EditSearchEngine:
         reasonable lengths, but could merit a second look if we look to apply this to other
         use cases.
         """
-        raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+        # Are we at a node in the trie that corresponds to a dictionary entry?
+        if node.is_final():
+
+            # This may or may not be something that we want to report: We know that the
+            # dictionary entry is within the edit distance bound to some prefix of the query
+            # string, but the query string could be longer. So check the distance between the
+            # dictionary entry and the complete query string. (We could easily do something
+            # here to support different matching modes.)
+            if (distance := table.distance(level)) <= upper_bound:
+                if not callback(distance, table.prefix(level), node.get_meta()):
+                    return False
+
+        # The node may have children. Explore or prune the branches. Only explore if we have
+        # not exceeded our upper bound. The lower our upper bound, the more of the search
+        # space we can prune away.
+        for transition in node.transitions(False):
+            if table.update2(level + 1, transition) <= upper_bound:
+                child = node.child(transition)
+                if child and not self._dfs(child, level + 1, table, upper_bound, callback):
+                    return False
+
+        # Continue the search.
+        return True
 
 
 class WordEditSearchEngine:

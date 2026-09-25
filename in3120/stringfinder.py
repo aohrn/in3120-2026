@@ -55,4 +55,51 @@ class StringFinder:
         In a serious application we'd add more lookup/evaluation features, e.g., support for prefix matching,
         support for leftmost-longest matching (instead of reporting all matches), and more.
         """
-        raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+        # Break up the analyzer, to report back spans relative to the input buffer which may
+        # or may not be canonicalized.
+        normalizer = self._analyzer.normalizer
+        tokenizer = self._analyzer.tokenizer
+
+        # The set of currently explored states. The trie node is what we advance along the way,
+        # the index is needed so that we know where we first started if/when a match is found,
+        # and the match is needed so that we can differentiate between the surface form of the
+        # match and the (possibly heavily normalized) base form of the match.
+        states: List[StringFinder.State] = []
+
+        # Where did the previous token end? Assume that tokens are produced sorted in left-to-right
+        # order.
+        previous_end = -1
+
+        # Only consider matches that start on token boundaries.
+        for string, (begin, end) in tokenizer.tokens(buffer):
+
+            # Mirror how the trie was built, ensuring we compare apples to apples.
+            # Canonicalize on a per token basis instead of doing the whole buffer upfront,
+            # to ensure that offsets are retained and the ranges we report back make
+            # sense to the client.
+            string = normalizer.normalize(normalizer.canonicalize(string))
+
+            # Is this token "connected to" the previous token, in the sense of the two being
+            # crammed together with nothing separating them? Some languages, e.g., Japanese or
+            # Chinese, don't use whitespace between tokens.
+            is_connected, previous_end = (previous_end > 0) and (begin == previous_end), end
+
+            # Inject a space for the currently live states, if needed. Prune away states that
+            # don't survive.
+            if not is_connected:
+                states = [self.State(child, state.begin, state.match + " ") for state in states if (child := state.node.consume(" "))]
+
+            # Consider this token a potential start for a match.
+            states.append(self.State(self._trie, begin, ""))
+
+            # Advance all currently live states with the current (normalized) token. Prune away
+            # states that don't survive.
+            states = [self.State(child, state.begin, state.match + string) for state in states if (child := state.node.consume(string))]
+
+            # Report matches, if any, that end on the token we just consumed. Use the
+            # tokenizer to possibly space-normalize the surface form we emit. If the client
+            # requires the exact surface form and its location in the input buffer, they can
+            # do that using the returned span.
+            yield from (self.Result(state.match, state.node.get_meta(),
+                                    tokenizer.join(tokenizer.tokens(buffer[state.begin:end])),
+                                    state.begin, end) for state in states if state.node.is_final())
