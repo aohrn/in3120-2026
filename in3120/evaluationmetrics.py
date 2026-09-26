@@ -203,7 +203,7 @@ class EvaluationMetrics:
         pn = ((ny + nn) + (yn + nn)) / (total + total)
         py = ((yy + yn) + (yy + ny)) / (total + total)
         pe = (pn * pn) + (py * py)
-        assert pe != 0
+        assert 0 <= pe < 1
         return (pa - pe) / (1 - pe)
 
     @staticmethod
