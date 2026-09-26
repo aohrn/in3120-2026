@@ -2,7 +2,7 @@
 # pylint: disable=line-too-long
 
 from __future__ import annotations
-from typing import Iterable, Iterator, Dict, Tuple
+from typing import Iterable, Dict, Tuple
 from math import sqrt
 from .sieve import Sieve
 
@@ -28,6 +28,10 @@ class SparseDocumentVector:
     similarity (the inner product of the vectors normalized by their lengths) is a very
     common metric.
     """
+
+    # Reduce the memory footprint of objects by preventing the creation of a dynamic dictionary
+    # for instance attributes.
+    __slots__ = ["_values", "_length"]
 
     def __init__(self, values: Dict[str, float]):
         # An alternative, effective representation would be as a
@@ -65,7 +69,8 @@ class SparseDocumentVector:
 
     def get_length(self) -> float:
         """
-        Returns the length (L^2 norm, also called the Euclidian norm) of the vector.
+        Returns the L² norm, also called the Euclidian norm, of the vector. Not to be
+        confused with the number of non-zero dimensions in the vector.
         """
         raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
 
@@ -111,8 +116,31 @@ class SparseDocumentVector:
         raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
 
     @staticmethod
-    def centroid(vectors: Iterator[SparseDocumentVector]) -> SparseDocumentVector:
+    def centroid(vectors: Iterable[SparseDocumentVector]) -> SparseDocumentVector:
         """
         Computes the centroid of all the vectors, i.e., the average vector.
         """
         raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+
+    @staticmethod
+    def rocchio(query: SparseDocumentVector, alpha: float, positives: Iterable[SparseDocumentVector], beta: float, negatives: Iterable[SparseDocumentVector], gamma: float) -> SparseDocumentVector:
+        """
+        Computes a Rocchio-updated query vector, given the original query vector,
+        a set of vectors for relevant documents, and a set of vectors for non-relevant
+        documents. The parameters α, β, and γ control their relative influences.
+
+        See Section 9.1.1 in https://nlp.stanford.edu/IR-book/pdf/09expand.pdf for details.
+        """
+        assert alpha >= 0.0 and beta >= 0.0 and gamma >= 0.0
+        updated = {term: weight * alpha for term, weight in query} if alpha > 0.0 else {}
+        if beta > 0.0:
+            centroid = SparseDocumentVector.centroid(positives)
+            for term, weight in centroid:
+                updated[term] = updated.get(term, 0.0) + weight * beta
+        if gamma > 0.0:
+            centroid = SparseDocumentVector.centroid(negatives)
+            if len(centroid) > 0:
+                for term, weight in centroid:
+                    updated[term] = updated.get(term, 0.0) - weight * gamma
+                updated = {term: weight for term, weight in updated.items() if weight > 0.0}
+        return SparseDocumentVector(updated)
