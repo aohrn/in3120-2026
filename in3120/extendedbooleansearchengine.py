@@ -44,8 +44,46 @@ class ExtendedBooleanSearchEngine(BooleanSearchEngine):
         terms2 = {canary: list(inverted_index.get_terms(terms1[canary][0])) for canary in canaries}
         assert all(terms1[canary] == terms2[canary] for canary in canaries), "Unsupported normalization detected."
 
-        # Initialize operator-specific helpers.
-        raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+        # Some of the helpers below require being given a normalizer and/or tokenizer.
+        # Since we will be operating directly on the index terms of the inverted index,
+        # we can assume that no further normalization and/or tokenization is required.
+        analyzer = DummyAnalyzer()
+
+        # Helper for the LOOKSLIKE operator.
+        vocabulary = SimpleTrie.from_strings(inverted_index.get_indexed_terms(), analyzer)
+        self._levenshtein = EditSearchEngine(vocabulary, analyzer)
+
+        # Helper for the WILDCARD operator.
+        self._permuterm = WildcardExpander(inverted_index.get_indexed_terms())
+
+        # Helper for the SOUNDSLIKE operator. Building up a complete mapping table is a bit
+        # of a hack, but works for small vocabularies. In a real-world, large-scale application
+        # one would probably not do this not by expansion but instead by searching in a dedicated
+        # inverted index of Soundex codes.
+        self._soundex = SoundexNormalizer()
+        self._phonetics: Dict[str, List[str]] = {}
+        for term in inverted_index.get_indexed_terms():
+            code = self._soundex.normalize(term)
+            if code not in self._phonetics:
+                self._phonetics[code] = []
+            self._phonetics[code].append(term)
+
+        # Helper for the SYNONYM operator. The synonym dictionary contains strings that make sense
+        # to the client. Normalize the synonyms and their expansions, so that we can use normalized
+        # terms directly as lookup keys and we don't have to re-normalize the expansions for every
+        # query.
+        self._synonyms = SimpleTrie()
+        if synonyms:
+            for key in synonyms.strings():
+                node = synonyms.consume(key)
+                assert node and node.has_meta(), f"Key '{key}' has no values."
+                values = node.get_meta()
+                assert isinstance(values, list), f"Key '{key}' has meta data that is not a list."
+                key2 = list(self._inverted_index.get_terms(key))
+                assert len(key2) == 1, f"Key '{key}' maps to a sequence of index terms {key2} instead of a single index term."
+                values2 = [t for v in values for t in self._inverted_index.get_terms(str(v))]
+                assert len(values) == len(values2), f"At least one of the values for key '{key}' maps to a sequence of index terms instead of a single index term."
+                self._synonyms.add2([(key2[0], values2)], analyzer)
 
     def _unhandled(self, tree: ast.Call) -> None:
         """
@@ -110,7 +148,7 @@ class ExtendedBooleanSearchEngine(BooleanSearchEngine):
         Given a wildcard query pattern, returns the list of index terms that the
         pattern gets expanded into.
         """
-        raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+        return list(self._permuterm.expand(pattern))
 
     def _synonym(self, term) -> List[str]:
         """
@@ -124,7 +162,10 @@ class ExtendedBooleanSearchEngine(BooleanSearchEngine):
         and enforce an equivalence relation criterion during construction of
         the synonym dictionary, if needed.
         """
-        raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+        node = self._synonyms.consume(term)
+        if node and node.is_final() and node.has_meta():
+            return node.get_meta()  # type: ignore[return-value]
+        return [term]
 
     def _lookslike(self, term) -> List[str]:
         """
@@ -132,11 +173,12 @@ class ExtendedBooleanSearchEngine(BooleanSearchEngine):
         to it as measured by edit distance. Currently, the edit distance threshold and the
         other lookup parameters are fixed.
         """
-        raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+        options = EditSearchEngine.Options(upper_bound=1, hit_count=10)
+        return [result.match for result in self._levenshtein.evaluate(term, options)]
 
     def _soundslike(self, term) -> List[str]:
         """
         Given a query term, returns the index term(s) that are phonetically close enough
         to it as measured by the Soundex algorithm.
         """
-        raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+        return self._phonetics.get(self._soundex.normalize(term), [term])
