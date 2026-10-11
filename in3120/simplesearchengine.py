@@ -68,13 +68,14 @@ class SimpleSearchEngine:
         Returns the subset of cursors (or, rather, their indices) that are still "alive",
         i.e., the subset of cursors having posting lists that have not yet been exhausted.
         """
-        raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+        return [i for i, cursor in enumerate(cursors) if cursor.current]
 
     def _advance(self, cursors: List[Cursor], subset: List[int]) -> None:
-        """"
+        """
         Advances the given subset of cursors.
         """
-        raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+        for i in subset:
+            cursors[i].current = next(cursors[i].postings, None)
 
     def _frontier(self, cursors: List[Cursor], subset: List[int]) -> Tuple[int, List[int]]:
         """
@@ -85,7 +86,9 @@ class SimpleSearchEngine:
         the smallest document identifier. Since posting lists are sorted in ascending order,
         the frontier represents the "leftmost" cursors when scanning from left to right.
         """
-        raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+        document_id = min(cursors[i].current.document_id for i in subset)  # type: ignore[union-attr]
+        frontier_ids = [i for i in subset if cursors[i].current.document_id == document_id]  # type: ignore[union-attr]
+        return document_id, frontier_ids
 
     def evaluate(self, query: str, ranker: Ranker, options: Options | None = None) -> Iterator[Result]:
         """
@@ -95,4 +98,49 @@ class SimpleSearchEngine:
         The matching documents, if any, are ranked by the supplied ranker, and only the "best" matches are yielded
         back to the client.
         """
-        raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+        # Default options apply unless specified.
+        options = options or self.Options()
+
+        # Produce the query terms and their posting lists. We must use the same string processing here
+        # as we used when building up the inverted index. Some terms might be duplicated (e.g., as in the
+        # query "to be or not to be").
+        unique_query_terms = Counter(self._inverted_index.get_terms(query))
+        posting_lists = (self._inverted_index[term] for term in unique_query_terms)
+
+        # Keep track of where we are in each posting list. Keep track of which ones that are not yet exhausted.
+        cursors = [self.Cursor(term, unique_query_terms[term], next(posting_list, None), posting_list) for term, posting_list in zip(unique_query_terms, posting_lists)]
+        remaining_ids = self._alive(cursors)
+
+        # We require that at least N of the M query terms are present in the document,
+        # for the document to be considered part of the result set. What should the minimum
+        # value of N be? (We could take multiplicity into account here, too, and not just uniqueness.)
+        match_threshold = max(0.0, min(1.0, options.match_threshold))
+        required_minimum = max(1, min(len(unique_query_terms), int(match_threshold * len(unique_query_terms))))
+
+        # We're doing ranked retrieval. Assess relevance scores per document as we go along, as we're doing
+        # document-at-a-time traversal. Keep track of the K highest-scoring documents.
+        sieve = Sieve(max(1, min(100, options.hit_count)))
+
+        # We're doing at least N-of-M matching. As we reach the end of the posting lists, we can abort when
+        # the number of non-exhausted lists drops below the required minimum N.
+        while len(remaining_ids) >= required_minimum:
+
+            # Which cursors mention the lowest document identifier?
+            document_id, frontier_ids = self._frontier(cursors, remaining_ids)
+
+            # The number of elements on the frontier needs to be at least N. Otherwise, these documents
+            # don't contain enough of the query terms, and aren't part of the result set.
+            if len(frontier_ids) >= required_minimum:
+                ranker.reset(document_id)
+                for i in frontier_ids:
+                    ranker.update(cursors[i].term, cursors[i].multiplicity, cursors[i].current)  # type: ignore[arg-type]
+                sieve.sift(ranker.evaluate(), document_id)
+
+            # Move along the cursors on the frontier, i.e., advance the cursor(s) having the lowest document identifiers.
+            # The cursors not on the frontier remain where they are. We may or may not reach the end of some posting lists
+            # when we advance, so the set of remaining non-exhausted lists might shrink.
+            self._advance(cursors, frontier_ids)
+            remaining_ids = self._alive(cursors)
+
+        # Emit the best-matching documents, sorted according to their relevancy scores.
+        yield from (self.Result(score, self._corpus[document_id]) for score, document_id in sieve.winners())
