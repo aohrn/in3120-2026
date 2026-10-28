@@ -9,6 +9,8 @@ from typing import Iterator, Tuple, List
 # A buffer span, i.e., positions in a buffer where something starts and ends.
 Span = Tuple[int, int]
 
+# A token, i.e., its surface form and its position in the buffer.
+Token = Tuple[str, Span]
 
 class Tokenizer(ABC):
     """
