@@ -1,10 +1,11 @@
 # pylint: disable=missing-module-docstring
 # pylint: disable=line-too-long
+# pyright: reportArgumentType=false
 
-from typing import Iterator, Tuple
+from typing import Iterator
 from collections import deque
 from itertools import islice
-from .tokenizer import Tokenizer
+from .tokenizer import Span, Token, Tokenizer
 from .normalizer import Normalizer, DummyNormalizer
 
 
@@ -33,8 +34,13 @@ class ShingleGenerator(Tokenizer):
         assert width > 0
         self._width = width
 
-    def spans(self, buffer: str) -> Iterator[Tuple[int, int]]:
-        raise NotImplementedError("You need to implement this as part of the obligatory assignment.")
+    def spans(self, buffer: str) -> Iterator[Span]:
+        if buffer == "":
+            return
+        if len(buffer) <= self._width:
+            yield (0, len(buffer))
+        else:
+            yield from ((i, i + self._width) for i in range(len(buffer) - self._width + 1))
 
 
 class WordShingleGenerator(Tokenizer):
@@ -62,13 +68,13 @@ class WordShingleGenerator(Tokenizer):
         self._tokenizer = tokenizer
         self._normalizer = normalizer or DummyNormalizer()
 
-    def spans(self, buffer: str) -> Iterator[Tuple[int, int]]:
+    def spans(self, buffer: str) -> Iterator[Span]:
         return (span for _, span in self.tokens(buffer))
 
     def strings(self, buffer: str) -> Iterator[str]:
         return (string for string, _ in self.tokens(buffer))
 
-    def tokens(self, buffer: str) -> Iterator[Tuple[str, Tuple[int, int]]]:
+    def tokens(self, buffer: str) -> Iterator[Token]:
         tokens = self._tokenizer.tokens(buffer)
         header = ((self._normalizer.normalize(string), span) for string, span in islice(tokens, self._width))
         window = deque(header, self._width)
